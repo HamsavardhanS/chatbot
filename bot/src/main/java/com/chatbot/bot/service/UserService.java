@@ -1,6 +1,5 @@
 package com.chatbot.bot.service;
 
-import java.lang.StackWalker.Option;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,12 +15,27 @@ public class UserService {
     private UserRepository userRepository;
 
     public User loginOrRegister(String mobileNumber) {
+        if (!isValidMobileNumber(mobileNumber)) {
+            throw new IllegalArgumentException("Invalid mobile number. It must be exactly 10 digits and numeric only.");
+        }
+
         return userRepository.findByMobileNumber(mobileNumber)
-                .orElseGet(() -> userRepository.save(new User(null,mobileNumber,null)));
+                .orElseGet(() -> userRepository.save(new User(null, mobileNumber, null)));
     }
 
-    private Optional<User> getByMobile(String mobile)
-    {
+    private boolean isValidMobileNumber(String mobileNumber) {
+        return mobileNumber != null && mobileNumber.matches("\\d{10}");
+    }
+
+    private Optional<User> getByMobile(String mobile) {
         return userRepository.findByMobileNumber(mobile);
+    }
+
+    public Object getAllUsers() {
+        try {
+            return userRepository.findAll();
+        } catch (Exception e) {
+            throw new RuntimeException("Error fetching users: " + e.getMessage());
+        }
     }
 }

@@ -27,6 +27,14 @@ public class AuthController {
         return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     }
 }
-
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllUsers() {
+        try {
+            return ResponseEntity.ok(userService.getAllUsers());
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }
+
 
