@@ -30,6 +30,11 @@ public class UserService {
     private Optional<User> getByMobile(String mobile) {
         return userRepository.findByMobileNumber(mobile);
     }
+    
+    public boolean userExists(String mobileNumber) {
+    return userRepository.existsByMobileNumber(mobileNumber);
+}
+
 
     public Object getAllUsers() {
         try {

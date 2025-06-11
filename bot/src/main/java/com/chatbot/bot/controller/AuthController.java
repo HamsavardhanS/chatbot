@@ -27,6 +27,12 @@ public class AuthController {
         return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
     }
 }
+    @GetMapping("/exists")
+public ResponseEntity<?> checkUserExists(@RequestParam String mobileNumber) {
+    boolean exists = userService.userExists(mobileNumber);
+    return ResponseEntity.ok(Map.of("exists", exists));
+}
+
     @GetMapping("/all")
     public ResponseEntity<?> getAllUsers() {
         try {

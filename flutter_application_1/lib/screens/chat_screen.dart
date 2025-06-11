@@ -72,6 +72,8 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isWaitingResponse = true);
     try {
       final url = Uri.parse('http://10.0.2.2:8080/api/auth/login');
+      //final url = Uri.parse('http://192.168.179.16:8080/api/auth/login');
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -146,6 +148,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
       if (_mobileNumber != null) {
         final url = Uri.parse('http://10.0.2.2:8080/api/history/save');
+        //final url = Uri.parse('http://192.168.179.16:8080/api/history/save');
         await http.post(
           url,
           headers: {'Content-Type': 'application/json'},
