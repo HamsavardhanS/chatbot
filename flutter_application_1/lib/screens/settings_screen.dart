@@ -3,6 +3,37 @@ import 'package:flutter/material.dart';
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
+  void _confirmLogout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text("Confirm Logout"),
+          content: const Text("Are you sure you want to log out?"),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("Cancel"),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // Close dialog
+              },
+            ),
+            TextButton(
+              child: const Text("Logout", style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                Navigator.of(dialogContext).pop(); // Close dialog
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (Route<dynamic> route) => false,
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -14,42 +45,37 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         children: [
           ListTile(
-            leading: Icon(Icons.person),
-            title: Text("Profile"),
+            leading: const Icon(Icons.person),
+            title: const Text("Profile"),
             onTap: () {
-              // Navigate to profile page or show dialog
               Navigator.pushNamed(context, '/profile');
             },
           ),
           ListTile(
-            leading: Icon(Icons.question_answer),
-            title: Text("FaQs"),
+            leading: const Icon(Icons.question_answer),
+            title: const Text("FaQs"),
             onTap: () {
               Navigator.pushNamed(context, '/faqs');
-              // Show notification settings
             },
           ),
           ListTile(
-            leading: Icon(Icons.lock),
-            title: Text("Privacy & Security"),
+            leading: const Icon(Icons.lock),
+            title: const Text("Privacy & Security"),
             onTap: () {
-              // Show privacy settings
+              // Add navigation or logic if needed
             },
           ),
           ListTile(
-            leading: Icon(Icons.info),
-            title: Text("About"),
+            leading: const Icon(Icons.info),
+            title: const Text("About"),
             onTap: () {
-              // Show about info
+              // Add navigation or logic if needed
             },
           ),
           ListTile(
-            leading: Icon(Icons.logout, color: Colors.red),
-            title: Text("Logout", style: TextStyle(color: Colors.red)),
-            onTap: () {
-              // Handle logout
-              Navigator.popUntil(context, ModalRoute.withName('/'));
-            },
+            leading: const Icon(Icons.logout, color: Colors.red),
+            title: const Text("Logout", style: TextStyle(color: Colors.red)),
+            onTap: () => _confirmLogout(context),
           ),
         ],
       ),

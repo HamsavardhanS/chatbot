@@ -22,6 +22,15 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isUserIdentified = false;
   String? _mobileNumber;
   int _currentIndex = 0;
+  String? _selectedDomain;
+
+  final List<String> _domains = [
+    'PROCUREMENT',
+    'QUALITY SPECIFICATIONS',
+    'DELIVERY TIMELINES',
+    'PRICING',
+    'DOCUMENTATION'
+  ];
 
   @override
   void initState() {
@@ -46,14 +55,19 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
     } else {
-      setState(() => _isListening = false);
       _speech.stop();
+      setState(() => _isListening = false);
     }
   }
 
-  void _sendMessage() {
-    final text = _controller.text.trim();
+  void _sendMessage([String? textOverride]) {
+    final text = textOverride?.trim() ?? _controller.text.trim();
     if (text.isEmpty || _isWaitingResponse) return;
+
+    if (_isListening) {
+      _speech.stop();
+      setState(() => _isListening = false);
+    }
 
     setState(() {
       _messages.add({'sender': 'user', 'text': text});
@@ -63,47 +77,39 @@ class _ChatScreenState extends State<ChatScreen> {
 
     if (!_isUserIdentified) {
       _verifyUser(text);
-    } else {
-      _getBotReply(text);
+    } else if (_selectedDomain != null && text.toLowerCase() == 'others') {
+      setState(() => _selectedDomain = null);
+      _showDomainCards();
+    } else if (_selectedDomain != null) {
+      _fetchAnswerFromBackend(_selectedDomain!, text);
     }
   }
 
   void _verifyUser(String mobile) async {
     setState(() => _isWaitingResponse = true);
     try {
-      final url = Uri.parse('http://10.0.2.2:8080/api/auth/login');
-      //final url = Uri.parse('http://192.168.179.16:8080/api/auth/login');
+      final url = Uri.parse('http://10.0.2.2:8080/api/auth/exists?mobileNumber=$mobile');
+      final response = await http.get(url);
+      final responseData = jsonDecode(response.body);
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'mobileNumber': mobile}),
-      );
-
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && responseData['exists'] == true) {
         setState(() {
           _isUserIdentified = true;
           _mobileNumber = mobile;
           _messages.add({
             'sender': 'bot',
-            'text': '✅ You\'re done my dear user , $mobile! Now, I am waiting to chat with you.'
+            'text': '✅ Welcome $mobile! Please choose a domain below.'
           });
+          _showDomainCards();
         });
-      }
-      else if (response.statusCode == 400) {
+      } else {
         setState(() {
           _isUserIdentified = false;
           _mobileNumber = null;
           _messages.add({
             'sender': 'bot',
-            'text': '❗Incorrect Mobile Number format. Please enter a valid mobile number.'
+            'text': '❌ You are not registered. Please contact the administrator or register first.'
           });
-        });
-        }
-      
-       else {
-        setState(() {
-          _messages.add({'sender': 'bot', 'text': '❌ Failed to register. Try again!'});
         });
       }
     } catch (e) {
@@ -115,76 +121,135 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  void _getBotReply(String userInput) async {
-    setState(() {
-      _messages.add({'sender': 'bot', 'text': '...typing'});
-      _isWaitingResponse = true;
-    });
-
-    try {
-      await Future.delayed(const Duration(seconds: 1));
-
-      String reply;
-      String input = userInput.toLowerCase();
-
-      if (input.contains("hello") || input.contains("hi") || input.contains("hey") || input.contains("greetings") || input.contains("welcome")) {
-        reply = "Hi there! How can I assist you today?";
-      } else if (input.contains("help")) {
-        reply = "Sure! I'm here to help. Please tell me your concern.";
-      } else if (input.contains("thank")) {
-        reply = "You're welcome! 😊";
-      } else if (input.contains("bye")) {
-        reply = "Goodbye! Have a great day!";
-      } else {
-        reply = "Hmm... I’m not sure how to respond to that yet.";
-      }
-
-      setState(() {
-        _messages.removeWhere((msg) => msg['text'] == '...typing');
-        _messages.add({'sender': 'bot', 'text': reply});
-      });
-
-      await _flutterTts.speak(reply);
-
-      if (_mobileNumber != null) {
-        final url = Uri.parse('http://10.0.2.2:8080/api/history/save');
-        //final url = Uri.parse('http://192.168.179.16:8080/api/history/save');
-        await http.post(
-          url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'mobileNumber': _mobileNumber,
-            'userMessage': userInput,
-            'chatResponse': reply,
-          }),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _messages.removeWhere((msg) => msg['text'] == '...typing');
-        _messages.add({'sender': 'bot', 'text': '⚠️ Oops! Something went wrong.'});
-      });
-    } finally {
-      setState(() => _isWaitingResponse = false);
-    }
+  void _showDomainCards() {
+    _messages.add({'sender': 'bot', 'text': '__DOMAINS__'});
   }
 
+Future<void> _fetchQuestionsForDomain(String domain) async {
+  setState(() {
+    _selectedDomain = domain;
+    _messages.add({'sender': 'user', 'text': domain});
+    _messages.removeWhere((msg) => msg['text'] == '__DOMAINS__');
+    _messages.add({
+      'sender': 'bot',
+      'text': '✅ You selected "$domain". Now you can ask your question!'
+    });
+    _messages.add({'sender': 'bot', 'text': '__OTHERS__'}); // 👈 Add Others button again
+  });
+}
+
+
+
+ Future<void> _fetchAnswerFromBackend(String domain, String question) async {
+  setState(() => _isWaitingResponse = true);
+  try {
+    final url = Uri.parse(
+      'http://10.0.2.2:8080/api/queries/search?domain=$domain&question=${Uri.encodeComponent(question)}',
+    );
+
+    final response = await http.get(url);
+
+    String answer = '';
+    if (response.statusCode == 200 && response.body.isNotEmpty) {
+      final body = jsonDecode(response.body);
+      answer = body['answer']?.toString().trim() ?? '';
+    }
+
+    if (answer.isEmpty) {
+      setState(() {
+        _messages.add({
+          'sender': 'bot',
+          'text': '🤖 Sorry, I didn’t get that. You can try rephrasing your question or select a different domain.',
+        });
+        _messages.add({'sender': 'bot', 'text': '__OTHERS__'}); // Add after the message
+      });
+    } else {
+      setState(() {
+        _messages.add({'sender': 'bot', 'text': answer});
+        _messages.add({'sender': 'bot', 'text': '__OTHERS__'}); // ✅ Add here AFTER bot response
+      });
+
+      await http.post(
+        Uri.parse('http://10.0.2.2:8080/api/history/save'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'mobileNumber': _mobileNumber,
+          'userMessage': question,
+          'chatResponse': answer,
+        }),
+      );
+    }
+  } catch (e) {
+    setState(() {
+      _messages.add({
+        'sender': 'bot',
+        'text': '⚠️ Unexpected error occurred. Please try again later.',
+      });
+      _messages.add({'sender': 'bot', 'text': '__OTHERS__'});
+    });
+  } finally {
+    setState(() => _isWaitingResponse = false);
+  }
+}
+
+
   Widget _buildMessage(String text, bool isUser) {
+    if (text == '__DOMAINS__') return _buildDomainOptionsInline();
+    if (text == '__OTHERS__') return _buildOthersButton();
+
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isUser ? Colors.blue[300] : Colors.deepPurple[100],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 16,
-            color: isUser ? Colors.white : Colors.black87,
+      child: GestureDetector(
+        onTap: () async {
+          if (!isUser) {
+            await _flutterTts.stop();
+            await _flutterTts.speak(text);
+          }
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isUser ? Colors.blue[300] : Colors.deepPurple[100],
+            borderRadius: BorderRadius.circular(12),
           ),
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 16, color: isUser ? Colors.white : Colors.black87),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDomainOptionsInline() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Wrap(
+        spacing: 8,
+        children: _domains.map((domain) {
+          return ElevatedButton(
+            onPressed: () => _fetchQuestionsForDomain(domain),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple[300]),
+            child: Text(domain, style: const TextStyle(fontSize: 12)),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildOthersButton() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8, bottom: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ElevatedButton(
+          onPressed: () => setState(() {
+            _selectedDomain = null;
+            _showDomainCards();
+          }),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+          child: const Text("Others"),
         ),
       ),
     );
@@ -216,9 +281,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: TextField(
                   controller: _controller,
                   decoration: InputDecoration(
-                    hintText: _isUserIdentified
-                        ? 'Type a message...'
-                        : 'Enter your mobile number...',
+                    hintText: _isUserIdentified ? 'Ask your question...' : 'Enter your mobile number...',
                   ),
                   enabled: !_isWaitingResponse,
                   onSubmitted: (_) => _sendMessage(),
@@ -247,16 +310,9 @@ class _ChatScreenState extends State<ChatScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    "ChatSmart",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
-                    ),
-                  ),
+                  const Text("ChatSmart", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
                   IconButton(
-                    icon: const Icon(Icons.settings, color: Colors.white),
+                    icon: const Icon(Icons.settings, color: Colors.deepPurple),
                     onPressed: () => Navigator.pushNamed(context, '/settings'),
                   )
                 ],
@@ -278,14 +334,8 @@ class _ChatScreenState extends State<ChatScreen> {
         unselectedItemColor: Colors.grey,
         onTap: (index) => setState(() => _currentIndex = index),
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble),
-            label: 'Chatbot',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble), label: 'Chatbot'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
         ],
       ),
     );
