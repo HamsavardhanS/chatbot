@@ -29,7 +29,7 @@ ChatSmart is a smart and responsive chatbot application built using **Flutter** 
 
 ---
 
-## 📁 Project Structure (Frontend - Flutter)
+## 📁 Project Structure (Frontend - Chatbot)
 
 lib/
 │
@@ -59,8 +59,8 @@ lib/
 ### 🔑 Flutter Setup
 
 ```bash
-git clone https://github.com/your-username/chatsmart.git
-cd chatsmart
+git clone https://github.com/HamsavardhanS/chatbot.git
+cd chatbot
 flutter pub get
 flutter run
 
