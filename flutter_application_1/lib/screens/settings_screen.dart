@@ -45,13 +45,6 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         children: [
           ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text("Profile"),
-            onTap: () {
-              Navigator.pushNamed(context, '/profile');
-            },
-          ),
-          ListTile(
             leading: const Icon(Icons.question_answer),
             title: const Text("FaQs"),
             onTap: () {
@@ -62,7 +55,7 @@ class SettingsScreen extends StatelessWidget {
             leading: const Icon(Icons.lock),
             title: const Text("Privacy & Security"),
             onTap: () {
-              // Add navigation or logic if needed
+              Navigator.pushNamed(context, '/privacy');
             },
           ),
           ListTile(
@@ -70,14 +63,10 @@ class SettingsScreen extends StatelessWidget {
             title: const Text("About"),
             onTap: () {
               // Add navigation or logic if needed
+              Navigator.pushNamed(context, '/about');
             },
           ),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text("Logout", style: TextStyle(color: Colors.red)),
-            onTap: () => _confirmLogout(context),
-          ),
-        ],
+      ],
       ),
     );
   }

@@ -25,8 +25,21 @@ public class QueriesController {
 
    @GetMapping("/search")
 public Queries searchQuestionInDomain(@RequestParam String domain, @RequestParam String question) {
-    return repository.searchFuzzyMatch(domain, question);
+    System.out.println("🔎 Domain: " + domain + ", Question: " + question);
+
+    // Try exact match first
+    Queries exact = repository.findByDomainIgnoreCaseAndQuestionIgnoreCase(domain, question);
+    if (exact != null) {
+        System.out.println("✅ Exact match found: " + exact.getQuestion());
+        return exact;
+    }
+
+    // Then fuzzy
+    Queries fuzzy = repository.searchFuzzyMatch(domain, question);
+    System.out.println("⚠️ Fuzzy match used: " + (fuzzy != null ? fuzzy.getQuestion() : "No match"));
+    return fuzzy;
 }
 
 }
+
 
